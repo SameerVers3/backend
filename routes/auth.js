@@ -16,17 +16,27 @@ const registerSchema = Joi.object({
     password: Joi.string().min(6).required(),
     firstName: Joi.string().required(),
     lastName: Joi.string().required(),
-    phone: Joi.string().length(10).pattern(/^[0-9]+$/).required()
+    phone: Joi.string().length(10).pattern(/^[0-9]+$/).required(),
+    username: Joi.string().min(3).max(10).required()
 });
 
-
 auth.post('/login', async (req, res) => {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body;
 
     try {
-        // Check if the user exists
-        const user = await JobSeeker.findOne({ email });
+        let user;
+        if (username) {
+            // If username is provided, find user by username
+            user = await JobSeeker.findOne({ username });
+        } else if (email) {
+            // If email is provided, find user by email
+            user = await JobSeeker.findOne({ email });
+        } else {
+            // If neither username nor email is provided, return error
+            return res.status(400).json({ error: "Username or email is required" });
+        }
 
+        // Check if user exists
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
@@ -55,26 +65,38 @@ auth.post("/register", async (req, res) => {
         }
 
         // Check if user already exists
-        const existingUser = await JobSeeker.findOne({ email: value.email });
-        if (existingUser) {
-            return res.status(400).send("User already exists");
+        const existingUserByEmail = await JobSeeker.findOne({ email: value.email });
+        const existingUserByUsername = await JobSeeker.findOne({ username: value.username });
+
+        if (existingUserByEmail) {
+            return res.status(400).send("Email is already registered");
         }
+
+        if (existingUserByUsername) {
+            return res.status(400).send("Username is already taken");
+        }
+
+        console.log("registyering")
 
         // Hash the password
         const hashedPassword = await hashPassword(value.password);
 
+        console.log(hashPassword)
         const newUser = new JobSeeker({
             firstName: value.firstName,
             lastName: value.lastName,
             email: value.email,
             phone: value.phone,
-            passwordHash: hashedPassword
+            passwordHash: hashedPassword,
+            username: value.username
         });
 
-        await newUser.save();
+        const user = await newUser.save();
 
-        const accessToken = jwt.sign({ _id: newUser._id }, process.env.JWT_SECRET);
+        console.log(process.env.JWT_SECRET)
+        const accessToken = jwt.sign({ _id: user.username }, process.env.JWT_SECRET);
 
+        console.log("done")
         res.json({ accessToken });
     } catch (err) {
         console.error("Error occurred during registration:", err);

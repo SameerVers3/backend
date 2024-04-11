@@ -4,7 +4,8 @@ const app = express();
 // routes
 const { auth } = require("./routes/auth");
 const { jobSeeker } = require("./routes/jobSeeker");
-
+const {recruiterAuth} = require("./routes/recruiterAuth")
+const { recruiter } = require("./routes/recruiter")
 const mongoose = require("mongoose");
 
 const secret = process.env.SECRET;
@@ -18,6 +19,8 @@ app.use(bodyParser.json());
 
 app.use("/auth", auth);
 app.use("/user", jobSeeker);
+app.use("/auth/recruiter", recruiterAuth);
+app.use("/recruiter", recruiter);
 
 app.get("/", (req, res) => {
     res.send("Hello World");

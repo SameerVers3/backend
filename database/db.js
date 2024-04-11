@@ -8,8 +8,9 @@ const recruiterSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   imageUrl: String,
   passwordHash: { type: String, required: true },
+  id: String,
   contactNumber: String,
-  companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' },
+  companyId: String,
   postedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
@@ -22,8 +23,10 @@ const companySchema = new mongoose.Schema({
   description: String,
   location: String,
   size: String,
+  id: String,
   recruiters: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recruiter' }],
   postedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
+  isApproved: Boolean,
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -64,6 +67,7 @@ const jobSeekerSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
   imageUrl: String,
+  username: String,
   profile: {
     resume: String,
     skills: [String],
