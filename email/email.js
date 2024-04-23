@@ -53,7 +53,7 @@ const sendEmail_Welcome = async (data) => {
 
 const sendEmail_verify = async (data) => {
     // Read the HTML file
-    const emailTemplate = fs.readFileSync(path.join(__dirname, '..', 'email\\template', 'verify.html'), 'utf8');
+    const emailTemplate = fs.readFileSync(path.join(__dirname, '..', 'email/template', 'verify.html'), 'utf8');
 
     let compilledTemplate = emailTemplate.replace("{{link}}", data.link);
 
