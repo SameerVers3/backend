@@ -1,7 +1,7 @@
 const { Router } = require("express");
-const { JobSeeker } = require("../database/db");
+const { JobSeeker, Job, Application} = require("../database/db");
 const { authMiddleware } = require("../middleware/auth");
-
+const Joi = require("joi");
 const jobSeeker = Router();
 
 jobSeeker.get("/", authMiddleware, async (req, res) => {
@@ -84,6 +84,60 @@ jobSeeker.get("/getUser/:username", async (req, res) => {
     } catch (error) {
         console.error("Error fetching user data:", error);
         return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
+
+jobSeeker.post("/apply", authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user; // This is the entire user object
+        const { jobId, coverLetter } = req.body;
+
+        // Validate the request body
+        const schema = Joi.object({
+            jobId: Joi.string().required(),
+            coverLetter: Joi.string().required() // Make cover letter a required field
+        });
+        
+        const { error } = schema.validate({ jobId, coverLetter });
+        if (error) {
+            return res.status(400).json({ success: false, message: error.details[0].message });
+        }
+
+        // Extract user ID from the user object
+        const user = userId._id;
+
+        // Find the job by ID
+        const job = await Job.findOne({ id: jobId });
+
+        if (!job) {
+            return res.status(404).json({ success: false, message: "Job not found" });
+        }
+
+        // Check if the job has expired
+        if (job.expiryDate < new Date()) {
+            return res.status(400).json({ success: false, message: "Job has expired" });
+        }
+
+        // Find the user by ID and add the job ID to the appliedJobs array
+        const updatedUser = await JobSeeker.findByIdAndUpdate(user, { $push: { appliedJobs: job._id } });
+
+        const application = await Application.create({ 
+            jobId: job._id, // Use job._id for jobId
+            jobSeekerId: user, // Use user (user ID) for jobSeekerId
+            coverLetter: coverLetter // Pass the coverLetter variable
+        });
+
+        await application.save();
+        await Job.findByIdAndUpdate(job._id, { $push: { applicants: { applicantId: user, applicationId: application._id, appliedDate: new Date() } } });
+
+        if (!updatedUser) {
+            return res.status(404).json({ success: false, message: "User not found or access token not valid" });
+        }
+
+        res.json({ success: true, message: "Job applied successfully" });
+    } catch (error) {
+        console.error("Error applying job:", error);
+        res.status(500).json({ success: false, message: "Error in applying job" });
     }
 });
 

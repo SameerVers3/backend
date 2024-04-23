@@ -25,8 +25,6 @@ const jobPostingSchema = Joi.object({
         max: Joi.number().required()
     }).required(),
     tags: Joi.array().items(Joi.string()),
-    company: Joi.string().required(),
-    postedBy: Joi.string().required(),
     expiryDate: Joi.date().required()
 });
 
@@ -45,7 +43,7 @@ recruiter.post('/addCompany', recruiterAuthMiddleware, async (req, res) => {
         
         let id = generateRandomHash(10);
         while (true){
-            let eu = await Recruiter.findOne({ email: id });
+            let eu = await Recruiter.findOne({ companyId: id });
             if (!eu) {
                 break;
             }
@@ -53,6 +51,8 @@ recruiter.post('/addCompany', recruiterAuthMiddleware, async (req, res) => {
                 id = generateRandomHash(10);
             }
         }
+
+        const reqRecruiter = await Recruiter.findOne({ id: req.id });
 
         // Create a new company profile
         const newCompany = new Company({
@@ -63,7 +63,8 @@ recruiter.post('/addCompany', recruiterAuthMiddleware, async (req, res) => {
             location: value.location,
             size: value.size,
             id: id,
-            isApproved: false // Set isApproved to false by default
+            isApproved: false, // Set isApproved to false by default
+            recruiters: [reqRecruiter._id]
         });
 
         // Save the new company profile
@@ -106,21 +107,76 @@ recruiter.post('/addJob', recruiterAuthMiddleware, async (req, res) => {
                 message: error.details[0].message });
         }
 
+        // Find the recruiter using the ID from the request
+        const recruiter = await Recruiter.findOne({ id: req.id });
+
+        if (!recruiter) {
+            // If recruiter is not found, return an error
+            return res.status(404).json({ 
+                success: false,
+                message: 'Recruiter not found' });
+        }
+
+        // Check if the recruiter has a company ID
+        if (!recruiter.companyId) {
+            // If recruiter doesn't have a company ID, return an error
+            return res.status(404).json({ 
+                success: false,
+                message: 'Recruiter is not associated with a company' });
+        }
+
+        // Find the company associated with the recruiter
+        const company = await Company.findOne({ id: recruiter.companyId });
+
+        if (!company) {
+            // If company is not found, return an error
+            return res.status(404).json({ 
+                success: false,
+                message: 'Company not found' });
+        }
+
+        const hash = generateRandomHash(20);
+        while (true){
+            let eu = await Job.findOne({ id: hash });
+            if (!eu) {
+                break;
+            }
+            else {
+                hash = generateRandomHash(20);
+            }
+        }
+
         // Create a new job posting object
-        const newJobPosting = new Job(value);
+        const newJobPosting = new Job({
+            title: value.title,
+            description: value.description,
+            requirements: value.requirements,
+            responsibilities: value.responsibilities,
+            location: value.location,
+            salaryRange: value.salaryRange,
+            tags: value.tags,
+            expiryDate: value.expiryDate,
+            companyId: company.id,
+            recruiters: [recruiter._id],
+            id: hash
+        });
 
         // Save the new job posting to the database
         const savedJobPosting = await newJobPosting.save();
 
-        console.log(req.id)
-        await Recruiter.findByIdAndUpdate(req.id, {
+        // Push the ID of the newly created job posting to the company's postedJobs array
+        await Company.findOneAndUpdate({ id: company.id }, {
             $push: { postedJobs: savedJobPosting._id }
         });
 
-        // Respond with the saved job posting
+        await Recruiter.findOneAndUpdate({id: req.id}, {
+            $push: { postedJobs: savedJobPosting._id }
+        });
+
+        // Respond with success message
         res.status(201).json({
             success: true,
-            message: "job added successfully"
+            message: "Job added successfully"
         });
     } catch (error) {
         // Handle errors
@@ -130,5 +186,7 @@ recruiter.post('/addJob', recruiterAuthMiddleware, async (req, res) => {
             message: 'Internal server error' });
     }
 });
+
+
 
 module.exports = {recruiter};

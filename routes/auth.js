@@ -8,7 +8,8 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 
-const {hashPassword, comparePassword} = require("../utils/passwordHash")
+const {hashPassword, comparePassword} = require("../utils/passwordHash");
+const { sendEmail_verify, sendEmail_Confirmation } = require('../email/email');
 
 
 const registerSchema = Joi.object({
@@ -16,8 +17,7 @@ const registerSchema = Joi.object({
     password: Joi.string().min(6).required(),
     firstName: Joi.string().required(),
     lastName: Joi.string().required(),
-    phone: Joi.string().length(10).pattern(/^[0-9]+$/).required(),
-    username: Joi.string().min(3).max(10).required()
+    phoneNumber: Joi.string().length(11).pattern(/^[0-9]+$/).required()
 });
 
 auth.post('/login', async (req, res) => {
@@ -61,22 +61,22 @@ auth.post("/register", async (req, res) => {
     try {
         const { error, value } = registerSchema.validate(req.body);
         if (error) {
-            return res.status(400).send(error.details[0].message);
+            console.log(error)
+            return res.status(400).send({
+                success: false,
+                messag: error.details[0].message
+            });
         }
 
         // Check if user already exists
         const existingUserByEmail = await JobSeeker.findOne({ email: value.email });
-        const existingUserByUsername = await JobSeeker.findOne({ username: value.username });
 
         if (existingUserByEmail) {
-            return res.status(400).send("Email is already registered");
+            return res.status(400).send({
+                success: false,
+                message: "Email is already registered"
+            });
         }
-
-        if (existingUserByUsername) {
-            return res.status(400).send("Username is already taken");
-        }
-
-        console.log("registyering")
 
         // Hash the password
         const hashedPassword = await hashPassword(value.password);
@@ -88,20 +88,69 @@ auth.post("/register", async (req, res) => {
             email: value.email,
             phone: value.phone,
             passwordHash: hashedPassword,
-            username: value.username
         });
 
         const user = await newUser.save();
 
-        console.log(process.env.JWT_SECRET)
-        const accessToken = jwt.sign({ _id: user.username }, process.env.JWT_SECRET);
+        const accessToken = jwt.sign({ _id: user.email }, process.env.JWT_SECRET);
 
-        console.log("done")
-        res.json({ accessToken });
+        const verifyJwt = jwt.sign({
+            id: user.email
+        }, process.env.JWT_SECRET);
+
+        const link = `https://wizwork.live/verify?token=${verifyJwt}`;
+
+        await sendEmail_verify({
+            email: user.email,
+            link: link
+        })
+
+        res.json({
+            success: true,
+            accessToken: accessToken,
+            message: "User registered successfully, Please verify your Email!!"
+        });
+
     } catch (err) {
         console.error("Error occurred during registration:", err);
         res.status(500).send("Internal Server Error");
     }
 });
+
+
+auth.post("/verifyAcount", async (req, res) => {
+    
+    try {
+        const token = req.body.token;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await JobSeeker.findOne({ email: decoded.id });
+
+        if(!user) {
+            return res.status(404).send("User not found");
+        }
+
+        if (user.isVerified) {
+            return res.status(400).send("Account already verified");
+        }
+        
+        user.isVerified = true;
+
+        await user.save();
+
+        await sendEmail_Confirmation({
+            email: user.email
+        });
+
+        res.json({
+            success: true,
+            message: "Account verified successfully"
+        });
+
+    }
+    catch(error) {
+            console.error("Error occurred during verification:", error);
+            res.status(500).send("Internal Server Error");
+    }
+})
 
 module.exports = {auth};

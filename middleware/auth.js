@@ -34,6 +34,8 @@ const recruiterAuthMiddleware = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log(decoded)
+    console.log("finding")
     const recruiter = await Recruiter.findById(decoded._id);
 
     if (!recruiter) {
@@ -41,7 +43,7 @@ const recruiterAuthMiddleware = async (req, res, next) => {
     }
 
     // Add the recruiter to the request object for further processing
-    req.recruiter = recruiter._id;
+    req.id = recruiter.id;
     next();
   } catch (error) {
     return res.status(401).json({ message: 'Invalid token.' });
