@@ -85,25 +85,25 @@ recruiterAuth.post("/register", async (req, res) => {
             passwordHash: hashedPassword,
             contactNumber: value.contactNumber,
             id: id
+        });        
+        
+        const user = await newUser.save();
+        
+        const company = new Company({
+            id: generateRandomHash(10),
+            recruiters: [newUser._id]
         });
 
-        const company = new 
+        company.save();
 
-        const user = await newUser.save();
-
-        console.log("hereee 3")
-
-        if (value.companyId) {
-            const existingCompany = await Recruiter.findOne({ companyId: value.companyId });
-            if (existingCompany) {
-                await Company.findOneAndUpdate({ id: value.companyId }, { $push: { recruiters: user._id } });
-            }
-        }
+        user.companyId = company.id;
+        await user.save();
 
         // Generate JWT token
         const accessToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
 
         res.json({ accessToken });
+        
     } catch (err) {
         console.error("Error occurred during registration:", err);
         res.status(500).send("Internal Server Error");
