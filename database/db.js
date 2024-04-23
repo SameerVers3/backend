@@ -18,7 +18,7 @@ const recruiterSchema = new mongoose.Schema({
 });
 
 const companySchema = new mongoose.Schema({
-  name: type: String,
+  name: String,
   industry: String,
   website: String,
   description: String,
