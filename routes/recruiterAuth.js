@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { Recruiter } = require('../database/db');
+const { Recruiter, Company } = require('../database/db');
 const jwt = require("jsonwebtoken");
 const recruiterAuth = Router();
 const Joi = require("joi");
@@ -13,9 +13,9 @@ const { hashPassword, comparePassword } = require("../utils/passwordHash");
 const registerSchema = Joi.object({
     email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
-    name: Joi.string().required(),
-    contactNumber: Joi.string().allow(null),
-    companyId: Joi.string().allow(null).optional(),
+    firstName: Joi.string().required(),
+    lastName: Joi.string().required(),
+    contactNumber: Joi.string().allow(null)
 });
 
 
@@ -50,18 +50,24 @@ recruiterAuth.post('/login', async (req, res) => {
 recruiterAuth.post("/register", async (req, res) => {
     try {
         const { error, value } = registerSchema.validate(req.body);
+
         if (error) {
             return res.status(400).send(error.details[0].message);
         }
 
         // Check if user already exists
         const existingUser = await Recruiter.findOne({ email: value.email });
+
         if (existingUser) {
-            return res.status(400).send("Email is already registered");
+            return res.status(400).send({
+                success: false,
+                message: "Email is already registered"
+            });
         }
 
         // Hash the password
         const hashedPassword = await hashPassword(value.password);
+        
         let id = generateRandomHash(10);
         while (true){
             let eu = await Recruiter.findOne({ email: id });
@@ -72,17 +78,27 @@ recruiterAuth.post("/register", async (req, res) => {
                 id = generateRandomHash(10);
             }
         }
-        // Create new user
+
         const newUser = new Recruiter({
             name: value.name,
             email: value.email,
             passwordHash: hashedPassword,
             contactNumber: value.contactNumber,
-            companyId: value.companyId,
             id: id
         });
 
+        const company = new 
+
         const user = await newUser.save();
+
+        console.log("hereee 3")
+
+        if (value.companyId) {
+            const existingCompany = await Recruiter.findOne({ companyId: value.companyId });
+            if (existingCompany) {
+                await Company.findOneAndUpdate({ id: value.companyId }, { $push: { recruiters: user._id } });
+            }
+        }
 
         // Generate JWT token
         const accessToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
