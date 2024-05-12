@@ -134,6 +134,8 @@ const sendEmail_Reset = async (data) => {
     // Read the HTML file
     const emailTemplate = fs.readFileSync(path.join(__dirname, '..', 'template', 'reset.html'), 'utf8');
 
+    emailTemplate = emailTemplate.replace("{{link}}", data.link);
+
     await new Promise((resolve, reject) => {
         // verify connection configuration
         transporter.verify(function (error, success) {

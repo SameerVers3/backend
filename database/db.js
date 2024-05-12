@@ -70,28 +70,29 @@ const jobSeekerSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   imageUrl: String,
   username: String,
-  profile: {
-    resume: String,
-    skills: [String],
-    experience: [
-      {
-        title: String,
-        company: String,
-        startDate: Date,
-        endDate: Date,
-        description: String
-      }
-    ],
-    education: [
-      {
-        degree: String,
-        institution: String,
-        yearCompleted: Number
-      }
-    ]
-  },
+  resume: String,
+  // profile: {
+  //   resume: String,
+  //   skills: [String],
+  //   experience: [
+  //     {
+  //       title: String,
+  //       company: String,
+  //       startDate: Date,
+  //       endDate: Date,
+  //       description: String
+  //     }
+  //   ],
+  //   education: [
+  //     {
+  //       degree: String,
+  //       institution: String,
+  //       yearCompleted: Number
+  //     }
+  //   ]
+  // },
   appliedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
-  savedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
+  // savedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   isVerified: { type: Boolean, default: false}
